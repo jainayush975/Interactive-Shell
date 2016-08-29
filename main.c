@@ -9,10 +9,13 @@
 //char arguments=[100000]
 //char *token;
 long long int no_of_commands;
-char dspace[3]=" \n";
+char dspace[6]=" \r\a\n\t";
+char *current_directory,*host_name,*user_name;
 
 void mycd(char *path)
 {
+	if(path==NULL)
+		path=current_directory;
 	chdir(path);
 	return;
 }
@@ -30,15 +33,38 @@ void myecho(char **arguments)
 	toprint=arguments[i];
 	while(toprint!=NULL)
 	{
-		printf("%s\n",toprint);
+		printf("%s ",toprint);
 		i++;
 		toprint = arguments[i];
 	}
+	printf("\n");
 }
+
+void give_display()
+{
+	host_name = malloc(1000*sizeof(char));
+	user_name = getenv("USER");
+	int t = gethostname(host_name, 1000);
+}
+
 
 void run_normal_command(char **arguments)
 {
-	int pid = fork(),check=0;
+	char and;and='&';
+	int i=1,check=0,flag=0,status;
+	pid_t pid = fork();
+	signal(SIGCHLD, SIG_IGN);
+	while(arguments[i]!=NULL)
+	{
+		if((arguments[i][0])==and){
+			flag=i;
+			arguments[i]=NULL;
+			break;
+		}
+		i++;
+	}
+
+
 	if(pid<0)
 	{
 		printf("Error Occured\n");
@@ -48,11 +74,14 @@ void run_normal_command(char **arguments)
 	{
 		check=execvp(arguments[0],arguments);
 		if(check<0)
-			printf("ERROR:Command can't be executed\n");
+			printf("ERROR:Command can't found\n");
 	}
 	else
 	{
-		wait(NULL);
+		if(flag==0)
+			waitpid(pid,&status,0);
+		else
+			printf("%d\n",pid);
 	}
 }
 
@@ -71,7 +100,7 @@ void run_command(char **arguments)
 char *get_input()
 {
 	char *line = NULL;
-	ssize_t bufsize = 0; // have getline allocate a buffer for us
+	ssize_t bufsize = 0; 
 	getline(&line, &bufsize ,stdin);
         return line;
 }
@@ -88,8 +117,6 @@ char **split_command(char *command)
 	while(token)
 	{
 		arguments[pos]=token;pos++;
-		//printf("inserting %s at %lld",arguments[pos-1],pos-1);
-
 		if(pos>=size)
 		{
 			size += 100;
@@ -116,7 +143,6 @@ char **split_input(char *input)
 	while(token)
 	{
 		commands[pos]=token;
-		//printf("INput => %s at %lld\n",commands[pos],pos);
 		pos++;
 
 		if(pos>=size)
@@ -132,13 +158,40 @@ char **split_input(char *input)
 	return commands;
 }
 
+void print_display()
+{
+	int flag=0,i=0;
+	char *nd;
+	nd = malloc(1000*sizeof(char)); getcwd(nd,1000);
+	while(current_directory[i]!='\0')
+	{
+		if(nd[i]=='\0')
+		{
+			flag=1;
+			break;
+		}
+		if(current_directory[i]!=nd[i])
+			flag=1;
+		i++;
+	}
+
+	if(flag==0)
+		printf("%s@%s:~/%s$ ",user_name,host_name,&nd[i]);
+	else	
+		printf("%s@%s:~%s$ ",user_name,host_name,nd);
+}
+
+
+
 
 int main()
 {
+	give_display();
+	current_directory = malloc(1000*sizeof(char));	getcwd(current_directory,1000); 
 	while(1)
 	{
-		no_of_commands =0 ;
-		printf("$ ");
+		no_of_commands =0;
+		print_display();
 		char *input;
 		char **commands;
 		char **arguments;
