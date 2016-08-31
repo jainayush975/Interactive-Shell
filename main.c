@@ -5,7 +5,7 @@
 #include<sys/types.h>
 #include<sys/wait.h>
 #include"mycommands.h"
-
+#include"ps.h"
 
 long long int no_of_commands;
 char dspace[6]=" \r\a\n\t";
@@ -17,13 +17,21 @@ void give_display()
 	int t = gethostname(host_name, 1000);
 }
 
+void checker(int sig)
+{
+
+  pid_t pid;
+
+  pid = wait(NULL);
+
+  printf("Pid %d exited.\n", pid);
+}
 
 void run_normal_command(char **arguments)
 {
 	char and;and='&';
-	int i=1,check=0,flag=0,status;
+	int i=1,flag=0,check=0,status;
 	pid_t pid = fork();
-	signal(SIGCHLD, SIG_IGN);
 	while(arguments[i]!=NULL)
 	{
 		if((arguments[i][0])==and){
@@ -33,7 +41,8 @@ void run_normal_command(char **arguments)
 		}
 		i++;
 	}
-
+	if(flag!=0)
+		signal(SIGCHLD, checker);
 
 	if(pid<0)
 	{
@@ -57,11 +66,12 @@ void run_normal_command(char **arguments)
 
 void run_command(char **arguments)
 {
-	char cd[10],pwd[10],echo[10];
-	strcpy(cd,"cd");strcpy(pwd,"pwd");strcpy(echo,"echo");
+	char cd[10],pwd[10],echo[10],pinfo[10];
+	strcpy(cd,"cd");strcpy(pwd,"pwd");strcpy(echo,"echo"),strcpy(pinfo,"pinfo");
 	if(strcmp(arguments[0],cd)==0)	mycd(arguments[1],current_directory);
 	else if(strcmp(arguments[0],pwd)==0)	mypwd();
 	else if(strcmp(arguments[0],echo)==0)	myecho(arguments);
+	else if(strcmp(arguments[0],pinfo)==0)	pinfo_func(arguments);
 	else	run_normal_command(arguments);
 	return ;
 }
@@ -148,7 +158,7 @@ void print_display()
 	if(flag==0)
 		printf("%s@%s:~/%s$ ",user_name,host_name,&nd[i]);
 	else	
-		printf("%s@%s:~%s$ ",user_name,host_name,nd);
+		printf("%s@%s:%s$ ",user_name,host_name,nd);
 }
 
 
