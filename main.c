@@ -4,42 +4,12 @@
 #include<unistd.h>
 #include<sys/types.h>
 #include<sys/wait.h>
+#include"mycommands.h"
 
-//char input=[100000]
-//char arguments=[100000]
-//char *token;
+
 long long int no_of_commands;
 char dspace[6]=" \r\a\n\t";
 char *current_directory,*host_name,*user_name;
-
-void mycd(char *path)
-{
-	if(path==NULL)
-		path=current_directory;
-	chdir(path);
-	return;
-}
-
-void mypwd()
-{
-	char pwd[1000];
-	getcwd(pwd,1000);
-	printf("%s\n",pwd);
-}
-
-void myecho(char **arguments)
-{	int i=1;
-	char *toprint;
-	toprint=arguments[i];
-	while(toprint!=NULL)
-	{
-		printf("%s ",toprint);
-		i++;
-		toprint = arguments[i];
-	}
-	printf("\n");
-}
-
 void give_display()
 {
 	host_name = malloc(1000*sizeof(char));
@@ -89,7 +59,7 @@ void run_command(char **arguments)
 {
 	char cd[10],pwd[10],echo[10];
 	strcpy(cd,"cd");strcpy(pwd,"pwd");strcpy(echo,"echo");
-	if(strcmp(arguments[0],cd)==0)	mycd(arguments[1]);
+	if(strcmp(arguments[0],cd)==0)	mycd(arguments[1],current_directory);
 	else if(strcmp(arguments[0],pwd)==0)	mypwd();
 	else if(strcmp(arguments[0],echo)==0)	myecho(arguments);
 	else	run_normal_command(arguments);
