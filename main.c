@@ -7,7 +7,9 @@
 #include"mycommands.h"
 #include"ps.h"
 
-long long int no_of_commands;
+int EXIT=0;
+
+long long int no_of_commands,no_of_arguments;
 char dspace[6]=" \r\a\n\t";
 char *current_directory,*host_name,*user_name;
 void give_display()
@@ -19,10 +21,9 @@ void give_display()
 
 void checker(int sig)
 {
-
-  pid_t pid;
-
-  pid = wait(NULL);
+  //pid = wait(NULL);
+	pid_t pid;
+	pid = getpid();
 
   printf("Pid %d exited.\n", pid);
 }
@@ -41,8 +42,9 @@ void run_normal_command(char **arguments)
 		}
 		i++;
 	}
-	if(flag!=0)
-		signal(SIGCHLD, checker);
+	//printf("\nflag = > %d\n",flag);
+	//if(flag!=0)
+	//	signal(SIGCHLD, checker);
 
 	if(pid<0)
 	{
@@ -66,16 +68,16 @@ void run_normal_command(char **arguments)
 
 void run_command(char **arguments)
 {
-	char cd[10],pwd[10],echo[10],pinfo[10];
-	strcpy(cd,"cd");strcpy(pwd,"pwd");strcpy(echo,"echo"),strcpy(pinfo,"pinfo");
+	char cd[10],pwd[10],echo[10],pinfo[10],exit[10];
+	strcpy(cd,"cd");strcpy(pwd,"pwd");strcpy(echo,"echo"),strcpy(pinfo,"pinfo"),strcpy(exit,"exit");
 	if(strcmp(arguments[0],cd)==0)	mycd(arguments[1],current_directory);
 	else if(strcmp(arguments[0],pwd)==0)	mypwd();
 	else if(strcmp(arguments[0],echo)==0)	myecho(arguments);
 	else if(strcmp(arguments[0],pinfo)==0)	pinfo_func(arguments);
+	else if(strcmp(arguments[0],exit)==0)	EXIT=1;
 	else	run_normal_command(arguments);
 	return ;
 }
-
 
 char *get_input()
 {
@@ -106,6 +108,7 @@ char **split_command(char *command)
 		token=strtok(NULL,dspace);
 	}
 	arguments[pos]=NULL;
+	no_of_arguments=pos;
 	return arguments;
 }
 
@@ -156,7 +159,7 @@ void print_display()
 	}
 
 	if(flag==0)
-		printf("%s@%s:~/%s$ ",user_name,host_name,&nd[i]);
+		printf("%s@%s:~%s$ ",user_name,host_name,&nd[i]);
 	else	
 		printf("%s@%s:%s$ ",user_name,host_name,nd);
 }
@@ -181,59 +184,19 @@ int main()
 		for(int num=0;num<no_of_commands;num++)
 		{
 			arguments=split_command(commands[num]);
-			run_command(arguments);
+			if(no_of_arguments!=0)
+				run_command(arguments);
 			free(arguments);
+			if(EXIT==1)
+				break;
 		}
+		if(EXIT==1)
+			break;
 	}
 
 	return 0;
 }
 
-
-
-/*
-void printall(char *input, char *cmnd, char **arguments)
-{
-	printf("input => %s command=> %s",input,cmnd);
-	char *i;
-	while(i!=NULL)
-	{
-	
-	}
-}*/
-
-
-/*
-void split_command(char ip[], char arguments[][1000])
-{
-	char *token;
-	token = ip;
-	token = strtok(token,&delm);
-	long long i=0;
-	while (token)
-	{
-		arguments[i] = token;i++;
-		token = strtok(NULL,&delm);
-	}
-	return;
-	
-}
-
-int split_input(char input[], char commands[][1000])
-{
-	char *token; 
-	token = input;
-	token = strtok(token,&delm);
-	long long i=0;
-	while (token)
-	{
-		commands[i]=token;i++;
-		token = strtok(NULL,&delm);
-	}
-	return i;
-
-}
-*/
 
 
 

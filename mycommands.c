@@ -6,7 +6,7 @@
 #include<sys/wait.h>
 void mycd(char *path, char *current_directory)
 {
-	if(path==NULL)
+	if((path==NULL)||(path[0]=='~'))
 		path=current_directory;
 	chdir(path);
 	return;
