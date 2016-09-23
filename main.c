@@ -5,13 +5,14 @@
 #include<sys/types.h>
 #include<sys/wait.h>
 #include"mycommands.h"
-#include"ps.h"
 
 int EXIT=0;
 
 long long int no_of_commands,no_of_arguments;
 char dspace[6]=" \r\a\n\t";
 char *current_directory,*host_name,*user_name;
+
+//function give user and host name
 void give_display()
 {
 	host_name = malloc(1000*sizeof(char));
@@ -19,15 +20,18 @@ void give_display()
 	int t = gethostname(host_name, 1000);
 }
 
+
+
 void checker(int sig)
 {
-  //pid = wait(NULL);
 	pid_t pid;
-	pid = getpid();
+	//pid = getpid();
+	pid = wait(NULL);
 
-  printf("Pid %d exited.\n", pid);
+	printf("Pid %d exited.\n", pid);
 }
 
+//function run normal commands
 void run_normal_command(char **arguments)
 {
 	char and;and='&';
@@ -44,27 +48,31 @@ void run_normal_command(char **arguments)
 	}
 	//printf("\nflag = > %d\n",flag);
 	//if(flag!=0)
-	//	signal(SIGCHLD, checker);
 
 	if(pid<0)
 	{
-		printf("Error Occured\n");
+		fprintf(stderr,"Error Occured\n");
 		return ;
 	}
 	if(pid==0)
 	{
 		check=execvp(arguments[0],arguments);
 		if(check<0)
-			printf("ERROR:Command can't found\n");
+			fprintf(stderr,"ERROR:Command can't found\n");
 	}
 	else
 	{
 		if(flag==0)
 			waitpid(pid,&status,0);
-		else
+		else{
 			printf("%d\n",pid);
+			//signal(SIGCHLD, checker);
+		}
 	}
 }
+
+
+//function checks command and call required function 
 
 void run_command(char **arguments)
 {
@@ -73,20 +81,23 @@ void run_command(char **arguments)
 	if(strcmp(arguments[0],cd)==0)	mycd(arguments[1],current_directory);
 	else if(strcmp(arguments[0],pwd)==0)	mypwd();
 	else if(strcmp(arguments[0],echo)==0)	myecho(arguments);
-	else if(strcmp(arguments[0],pinfo)==0)	pinfo_func(arguments);
+	else if(strcmp(arguments[0],pinfo)==0)	mypinfo(arguments);
 	else if(strcmp(arguments[0],exit)==0)	EXIT=1;
 	else	run_normal_command(arguments);
 	return ;
 }
+
+//to get command 
 
 char *get_input()
 {
 	char *line = NULL;
 	ssize_t bufsize = 0; 
 	getline(&line, &bufsize ,stdin);
-        return line;
+	return line;
 }
 
+//to split any command into arguments
 
 char **split_command(char *command)
 {
@@ -113,7 +124,7 @@ char **split_command(char *command)
 }
 
 
-
+//to break each command
 
 char **split_input(char *input)
 {
@@ -141,6 +152,9 @@ char **split_input(char *input)
 	return commands;
 }
 
+//pirnt display command prompt
+
+
 void print_display()
 {
 	int flag=0,i=0;
@@ -159,9 +173,9 @@ void print_display()
 	}
 
 	if(flag==0)
-		printf("%s@%s:~%s$ ",user_name,host_name,&nd[i]);
+		printf("%s@%s:~%s $ ",user_name,host_name,&nd[i]);
 	else	
-		printf("%s@%s:%s$ ",user_name,host_name,nd);
+		printf("%s@%s:%s $ ",user_name,host_name,nd);
 }
 
 

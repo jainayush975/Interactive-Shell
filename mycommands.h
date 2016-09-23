@@ -4,6 +4,7 @@
 void mycd(char *path, char *current_directory);
 void myecho(char **arguments);
 void mypwd();
+void mypinfo(char **final);
 
 
 #endif
