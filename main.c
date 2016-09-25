@@ -5,6 +5,11 @@
 #include<sys/types.h>
 #include<sys/wait.h>
 #include"mycommands.h"
+#include <sys/utsname.h>
+#include <limits.h>
+#include <fcntl.h>
+#include <errno.h>
+
 
 int EXIT=0;
 
@@ -12,26 +17,15 @@ long long int no_of_commands,no_of_arguments;
 char dspace[6]=" \r\a\n\t";
 char *current_directory,*host_name,*user_name;
 
-//function give user and host name
-void give_display()
-{
-	host_name = malloc(1000*sizeof(char));
-	user_name = getenv("USER");
-	int t = gethostname(host_name, 1000);
-}
-
-
-
 void checker(int sig)
 {
 	pid_t pid;
-	//pid = getpid();
 	pid = wait(NULL);
 
 	printf("Pid %d exited.\n", pid);
 }
 
-//function run normal commands
+//********************function to run normal commands******************************//
 void run_normal_command(char **arguments)
 {
 	char and;and='&';
@@ -46,8 +40,6 @@ void run_normal_command(char **arguments)
 		}
 		i++;
 	}
-	//printf("\nflag = > %d\n",flag);
-	//if(flag!=0)
 
 	if(pid<0)
 	{
@@ -56,6 +48,7 @@ void run_normal_command(char **arguments)
 	}
 	if(pid==0)
 	{
+		//signal( SIGINT , SIG_DFL);
 		check=execvp(arguments[0],arguments);
 		if(check<0)
 			fprintf(stderr,"ERROR:Command can't found\n");
@@ -66,33 +59,74 @@ void run_normal_command(char **arguments)
 			waitpid(pid,&status,0);
 		else{
 			printf("%d\n",pid);
-			//signal(SIGCHLD, checker);
 		}
 	}
 }
 
+void check_redirection(char **arguments)
+{
+	int i=0,chk=0;
+	char * file;
+	for(i=1;i<no_of_arguments;i++)
+	{
+		if(strcmp(arguments[i],">")==0)
+		{
+			file = arguments[i+1];
+			int fd = open(file,O_RDWR | O_CREAT,0777);
+			if(dup2(fd,1) == -1) printf("some error occurred\n");
+			close(fd);
+			arguments[i]=NULL;
+		}
+		else if(strcmp(arguments[i],">>")==0)
+		{
 
-//function checks command and call required function 
+			file = arguments[i+1];
+			int fd = open(file,O_RDWR | O_CREAT | O_APPEND,0777);
+			if(dup2(fd,1) == -1) printf("some error occurred\n");
+			close(fd);
+			arguments[i]=NULL;
+		}
+		else if(strcmp(arguments[i],"<")==0)
+		{
+			file = arguments[i+1];
+			int fd = open(file,O_RDWR,0777);
+			dup2(fd,0);
+			close(fd);
+			arguments[i]=NULL;
+		}
+	}
+	return ;
+}
+
+
+//function checks command and call required function
 
 void run_command(char **arguments)
 {
-	char cd[10],pwd[10],echo[10],pinfo[10],exit[10];
-	strcpy(cd,"cd");strcpy(pwd,"pwd");strcpy(echo,"echo"),strcpy(pinfo,"pinfo"),strcpy(exit,"exit");
+	int stdinp = dup(0);
+	int stdout = dup(1);
+	check_redirection(arguments);
+	char cd[10],pwd[10],echo[10],pinfo[10],exit[10],null[10];
+	strcpy(cd,"cd");strcpy(pwd,"pwd");strcpy(echo,"echo"),strcpy(pinfo,"pinfo"),strcpy(exit,"exit"),strcpy(null,"\0");
 	if(strcmp(arguments[0],cd)==0)	mycd(arguments[1],current_directory);
 	else if(strcmp(arguments[0],pwd)==0)	mypwd();
 	else if(strcmp(arguments[0],echo)==0)	myecho(arguments);
 	else if(strcmp(arguments[0],pinfo)==0)	mypinfo(arguments);
 	else if(strcmp(arguments[0],exit)==0)	EXIT=1;
 	else	run_normal_command(arguments);
+	dup2(stdinp,0);
+	dup2(stdout,1);
+	close(stdinp);
+	close(stdout);
 	return ;
 }
 
-//to get command 
+//to get command
 
 char *get_input()
 {
 	char *line = NULL;
-	ssize_t bufsize = 0; 
+	ssize_t bufsize = 0;
 	getline(&line, &bufsize ,stdin);
 	return line;
 }
@@ -102,7 +136,7 @@ char *get_input()
 char **split_command(char *command)
 {
 	long long size=100,pos=0;
-	char **arguments=(malloc(size*sizeof(char*)));	
+	char **arguments=(malloc(size*sizeof(char*)));
 	char *token;
 
 	token = strtok(command,dspace);
@@ -128,8 +162,9 @@ char **split_command(char *command)
 
 char **split_input(char *input)
 {
+	no_of_commands=0;
 	long long size=100,pos=0;
-	char **commands=(malloc(size*sizeof(char*)));	
+	char **commands=(malloc(size*sizeof(char*)));
 	char *token;
 
 	token = strtok(input,";");
@@ -174,25 +209,33 @@ void print_display()
 
 	if(flag==0)
 		printf("%s@%s:~%s $ ",user_name,host_name,&nd[i]);
-	else	
+	else
 		printf("%s@%s:%s $ ",user_name,host_name,nd);
 }
 
-
-
+//function give user and host name
+void give_display()
+{
+	host_name = malloc(1000*sizeof(char));
+	user_name = getenv("USER");
+	int t = gethostname(host_name, 1000);
+}
 
 int main()
 {
 	give_display();
-	current_directory = malloc(1000*sizeof(char));	getcwd(current_directory,1000); 
+	current_directory = malloc(1000*sizeof(char));	getcwd(current_directory,1000);
 	while(1)
 	{
+		signal( SIGINT , SIG_IGN);
 		no_of_commands =0;
 		print_display();
 		char *input;
 		char **commands;
 		char **arguments;
 		input=get_input(input);
+		if(input==NULL)
+			EXIT=1;
 		commands=split_input(input);
 		char *point;
 		for(int num=0;num<no_of_commands;num++)
@@ -204,13 +247,8 @@ int main()
 			if(EXIT==1)
 				break;
 		}
-		if(EXIT==1)
+		if(EXIT==1 || no_of_commands==0)
 			break;
 	}
-
 	return 0;
 }
-
-
-
-
