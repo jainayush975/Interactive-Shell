@@ -1,2 +1,2 @@
-main: main.c mycommands.c 
-	gcc main.c mycommands.c -o main
+main: main.c mycommands.c pipe.c
+	gcc main.c mycommands.c pipe.c -o main

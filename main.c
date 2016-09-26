@@ -5,6 +5,7 @@
 #include<sys/types.h>
 #include<sys/wait.h>
 #include"mycommands.h"
+#include"pipe.h"
 #include <sys/utsname.h>
 #include <limits.h>
 #include <fcntl.h>
@@ -240,6 +241,11 @@ int main()
 		char *point;
 		for(int num=0;num<no_of_commands;num++)
 		{
+			if(checkPipe(commands[num]))
+			{
+				piping(commands[num]);
+				continue;
+			}
 			arguments=split_command(commands[num]);
 			if(no_of_arguments!=0)
 				run_command(arguments);
