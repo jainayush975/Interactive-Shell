@@ -5,7 +5,6 @@
 #include<sys/types.h>
 #include<sys/wait.h>
 #include"mycommands.h"
-#include"pipe.h"
 #include <sys/utsname.h>
 #include <limits.h>
 #include <fcntl.h>
@@ -17,14 +16,10 @@ int EXIT=0;
 long long int no_of_commands,no_of_arguments;
 char dspace[6]=" \r\a\n\t";
 char *current_directory,*host_name,*user_name;
-
-void checker(int sig)
-{
-	pid_t pid;
-	pid = wait(NULL);
-
-	printf("Pid %d exited.\n", pid);
-}
+int jobs[100];
+char njobs[100][100];
+int np=0;
+int flj[100];
 
 //********************function to run normal commands******************************//
 void run_normal_command(char **arguments)
@@ -49,7 +44,7 @@ void run_normal_command(char **arguments)
 	}
 	if(pid==0)
 	{
-		//signal( SIGINT , SIG_DFL);
+		signal( SIGINT , SIG_DFL);
 		check=execvp(arguments[0],arguments);
 		if(check<0)
 			fprintf(stderr,"ERROR:Command can't found\n");
@@ -60,10 +55,227 @@ void run_normal_command(char **arguments)
 			waitpid(pid,&status,0);
 		else{
 			printf("%d\n",pid);
+			strcpy(njobs[np],arguments[0]);
+			jobs[np]=pid;
+			flj[np]=1;
+			np++;
 		}
 	}
 }
 
+//******************************************** piping related functions ***************************************************
+
+
+//******************************** function to Execute single element of a piped command ***************************
+int execute_single_command(int in, int out, char *com)
+{
+	pid_t pid;
+	char *argument[1000];int i;
+	char * Split_temp = strtok(com," ");
+	for(i = 0; i < 1000; i++) {
+		argument[i] = Split_temp;
+		Split_temp = strtok(NULL," ");
+		if(argument[i] == NULL) break;
+	}
+	i=1;
+	while(argument[i]!=NULL)
+	{
+		if(strcmp(argument[i],"<")==0)
+		{
+			char* file = argument[i+1];
+			int fd = open(file,O_RDWR,0777);
+			dup2(fd,in);
+			close(fd);
+			argument[i]=NULL;
+		}
+		else if(strcmp(argument[i],">")==0)
+		{
+			char* file = argument[i+1];
+			int fd = open(file,O_RDWR | O_CREAT,0777);
+			if(dup2(fd,out) == -1) printf("some error occurred\n");
+			close(fd);
+			argument[i]=NULL;
+		}
+		else if(strcmp(argument[i],">>")==0)
+		{
+			char* file = argument[i+1];
+			int fd = open(file,O_RDWR | O_CREAT | O_APPEND,0777);
+			if(dup2(fd,out) == -1) printf("some error occurred\n");
+			close(fd);
+			argument[i]=NULL;
+		}
+		i++;
+	}
+	pid = fork();
+	if (pid == 0)
+	{
+		int j=0;
+		while(j<i)
+		{
+			//if(redirect==1)
+			//	dup2(in,0);
+			//else if(redirect==2)
+			//	dup2(out,0);
+			j++;
+	
+		}
+
+		if (in != 0)
+		{
+			dup2 (in, 0);
+			close (in);
+		}
+
+		if (out != 1)
+		{
+			dup2 (out, 1);
+			close (out);
+		}
+
+		return execvp (argument[0], argument);
+	}
+
+	return pid;
+}
+
+//********************************** function to handle piping ********************************************
+
+int handle_piping(char * comd)
+{
+	int std_in, std_out,splitedcommand = 0,totalcommand;
+	std_in = dup(0);
+	std_out = dup(1);
+	int i;
+	int in, fd [2];
+	char * split;
+	char com[100][100];
+	if(comd[strlen(comd)-1] == '\n')
+	{
+		comd[strlen(comd)-1] = '\0';
+	}
+	int temp=0;
+	split = strtok(comd,"|");
+	while(split)
+	{
+		strcpy(com[temp],split);
+		split = strtok(NULL,"|");
+		temp++;
+	}
+	in = 0;
+
+	for (i = 0; i < temp-1; ++i)
+	{
+		totalcommand = i;
+		while(splitedcommand<totalcommand)
+		{
+			//pipe (fd);
+			//execute_single_command(in, fd [1], com[i]);
+			splitedcommand++;
+		}
+		pipe (fd);
+		execute_single_command(in, fd [1], com[i]);
+		close (fd [1]);
+		in = fd [0];
+	}
+
+	char *argument[1000];
+	char * Split_temp = strtok(com[i]," ");
+	for(i = 0; i < 1000; i++)
+	{
+		argument[i] = Split_temp;
+		Split_temp = strtok(NULL," ");
+		if(argument[i] == NULL) break;
+		}
+		i=1;
+		while(argument[i]!=NULL)
+		{
+			if(strcmp(argument[i],"<")==0)
+			{
+				char* file = argument[i+1];
+				int fd = open(file,O_RDWR,0777);
+				dup2(fd,in);
+				close(fd);
+				argument[i]=NULL;
+			}
+			else if(strcmp(argument[i],">")==0)
+			{
+				char* file = argument[i+1];
+				int fd = open(file,O_RDWR | O_CREAT,0777);
+				if(dup2(fd,1) == -1) printf("some error occurred\n");
+				close(fd);
+				argument[i]=NULL;
+			}
+			else if(strcmp(argument[i],">>")==0)
+			{
+				char* file = argument[i+1];
+				int fd = open(file,O_RDWR | O_CREAT | O_APPEND,0777);
+				if(dup2(fd,1) == -1) printf("some error occurred\n");
+				close(fd);
+				argument[i]=NULL;
+			}
+			i++;
+		}
+
+	pid_t pid = fork();
+	if (pid == -1)
+	{
+		char* error = strerror(errno);
+		printf("fork: %s\n", error);
+		dup2(std_in, 0);
+		dup2(std_out,1);
+		close(std_in);
+		close(std_out);
+		return 1;
+	}
+
+	else if (pid == 0) {
+		if (in != 0)
+			dup2 (in, 0);
+		execvp(argument[0], argument);
+		dup2(std_in, 0);
+		dup2(std_out,1);
+		close(std_in);
+		close(std_out);
+		char* error = strerror(errno);
+		printf("shell: %s: %s\n", argument[0], error);
+		return 0;
+	}
+	else {
+		int childStatus;
+		waitpid(pid, &childStatus, 0);
+		dup2(std_in, 0);
+		dup2(std_out,1);
+		close(std_in);
+		close(std_out);
+		return 1;
+	}
+	dup2(std_in, 0);
+	dup2(std_out,1);
+	close(std_in);
+	close(std_out);
+}
+
+//********************************************* To check piping *********************************
+
+int checkPipe(char* com)
+{
+	int l=strlen(com);
+	int i;
+	for(i=0;i<l;i++)
+	{
+		if(com[i]=='|')
+		{
+			return 1;
+		}
+	}
+	return 0;
+}
+
+//*****************************************piping functions ends ***************************************
+
+
+
+// ****************************** function to check redirection is present or not *********************
 void check_redirection(char **arguments)
 {
 	int i=0,chk=0;
@@ -100,20 +312,30 @@ void check_redirection(char **arguments)
 }
 
 
-//function checks command and call required function
+//*************************** function checks command and call required function *****************************
 
 void run_command(char **arguments)
 {
 	int stdinp = dup(0);
 	int stdout = dup(1);
 	check_redirection(arguments);
-	char cd[10],pwd[10],echo[10],pinfo[10],exit[10],null[10];
-	strcpy(cd,"cd");strcpy(pwd,"pwd");strcpy(echo,"echo"),strcpy(pinfo,"pinfo"),strcpy(exit,"exit"),strcpy(null,"\0");
+	char cd[10],pwd[10],echo[10],pinfo[10],exit[10];
+	strcpy(cd,"cd");strcpy(pwd,"pwd");strcpy(echo,"echo"),strcpy(pinfo,"pinfo"),strcpy(exit,"exit");
 	if(strcmp(arguments[0],cd)==0)	mycd(arguments[1],current_directory);
+	else if(strcmp(arguments[0],"jobs")==0)	myjobs(njobs , jobs , flj , np);
+	else if(strcmp(arguments[0],"kjob")==0)	mykjobs(jobs[arguments[1][0]-'0'],arguments[2][0]-'0');
+	else if(strcmp(arguments[0], "killallbg")==0)	mykillallbg(jobs , flj , np);
 	else if(strcmp(arguments[0],pwd)==0)	mypwd();
 	else if(strcmp(arguments[0],echo)==0)	myecho(arguments);
 	else if(strcmp(arguments[0],pinfo)==0)	mypinfo(arguments);
 	else if(strcmp(arguments[0],exit)==0)	EXIT=1;
+	else if(strcmp(arguments[0],"fg")==0)
+	{
+		if(flj[arguments[1][0]-'0']==1)
+			myfg(jobs[arguments[1][0]-'0']);
+		else
+			printf("Error: No jobs exists\n" );
+	}
 	else	run_normal_command(arguments);
 	dup2(stdinp,0);
 	dup2(stdout,1);
@@ -122,17 +344,17 @@ void run_command(char **arguments)
 	return ;
 }
 
-//to get command
+//*********** function to get command ****************
 
 char *get_input()
 {
 	char *line = NULL;
 	ssize_t bufsize = 0;
-	getline(&line, &bufsize ,stdin);
+	getline(	&line, &bufsize ,stdin);
 	return line;
 }
 
-//to split any command into arguments
+//************ function to split any command into arguments*************
 
 char **split_command(char *command)
 {
@@ -159,7 +381,7 @@ char **split_command(char *command)
 }
 
 
-//to break each command
+//**************************** function to break each command ***************************
 
 char **split_input(char *input)
 {
@@ -188,7 +410,7 @@ char **split_input(char *input)
 	return commands;
 }
 
-//pirnt display command prompt
+//******************** function to pirnt display command prompt ***********************************
 
 
 void print_display()
@@ -214,7 +436,7 @@ void print_display()
 		printf("%s@%s:%s $ ",user_name,host_name,nd);
 }
 
-//function give user and host name
+//************* function give user and host name ***************
 void give_display()
 {
 	host_name = malloc(1000*sizeof(char));
@@ -222,12 +444,27 @@ void give_display()
 	int t = gethostname(host_name, 1000);
 }
 
+
+//****************** main function ****************************
 int main()
 {
+	int it;
+	for(it=0;it<100;it++)
+		flj[it]=0;
 	give_display();
 	current_directory = malloc(1000*sizeof(char));	getcwd(current_directory,1000);
 	while(1)
 	{
+		int status;pid_t pid;
+		while((pid = waitpid(-1, &status, WNOHANG)) > 0)
+		{
+			for(int jk=0;jk<100;jk++){
+				if(jobs[jk]==pid){
+					flj[jk]=0;
+					printf("[proc %d exited with code %d]\n",pid, WEXITSTATUS(status));
+				}
+			}
+		}
 		signal( SIGINT , SIG_IGN);
 		no_of_commands =0;
 		print_display();
@@ -243,7 +480,7 @@ int main()
 		{
 			if(checkPipe(commands[num]))
 			{
-				piping(commands[num]);
+				handle_piping(commands[num]);
 				continue;
 			}
 			arguments=split_command(commands[num]);
@@ -256,5 +493,6 @@ int main()
 		if(EXIT==1 || no_of_commands==0)
 			break;
 	}
+	exit(0);
 	return 0;
 }

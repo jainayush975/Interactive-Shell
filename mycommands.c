@@ -4,6 +4,45 @@
 #include<unistd.h>
 #include<sys/types.h>
 #include<sys/wait.h>
+
+void mykjobs( pid_t pd , int sig)
+{
+	kill(pd , sig);
+	return;
+}
+
+void mykillallbg(int *jbs , int *flagit , int end)
+{
+	int a;
+	for (a = 0; a < end; a++)
+	{
+		if (flagit[a]==1) {
+			kill(jbs[a] , 9);
+		}
+	}
+	return ;
+}
+
+void myfg(pid_t pd)
+{
+	printf("Running process with pid: %d\n",pd );
+	int status;
+	waitpid(pd,&status,0);
+}
+
+void myjobs(char njbs[][100] , int *jbs ,int *flagit, int end)
+{
+	int i,j=1;
+	for(i=0;i<end;i++)
+	{
+		if(flagit[i]==1)
+		{
+			printf("[%d] %s [%d]\n",i , njbs[i] , jbs[i]);
+		}
+	}
+	return ;
+}
+
 void mycd(char *path, char *current_directory)
 {
 	if((path==NULL)||(path[0]=='~'))
@@ -87,7 +126,7 @@ void mypinfo(char **final)
 		char status[100];
 		fp = fopen(pathf,"r");
 		fgets(proc_path,1024,fp);
-		fclose(fp); 
+		fclose(fp);
 		fp = fopen (statf, "r");
 		char temp5[100];
 		fgets(status,100,fp);
