@@ -1,11 +1,13 @@
-This shell in C has been made by Ayush Jain (201501209). 
+# Shell in C
 
-I have implemented following features:
+##Fully functional shell in c with some extra commands
+
+###Has following features:
 1. Shell Prompt which shows username and current directory
 2. Execute builtin commands
 3. Background process with &
 4. Custum made commands for echo, pwd, cd , jobs ,kjob ,killallbg
-5. System commands with and without arguments 
+5. System commands with and without arguments
 6. pinfo :​  prints the process related info of your shell program
 7. Printing appropriate errors to stderr
 8. User can type the command anywhere in the command line i.e. by giving spaces, tabs etc
@@ -15,7 +17,7 @@ I have implemented following features:
 11. Implemanted piping
 12. Implemanted redirection
 13. Implemanted piping with redirection
-
+14. Can take commands with random spaces and tabs
 
 File included are:
 1. main.c
@@ -23,4 +25,8 @@ File included are:
 3. mycommands.h
 4. Makefile
 
-To run the shell: make followed by ./main
+To run the shell:
+
+  $make
+
+  $./main
